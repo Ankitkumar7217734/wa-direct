@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#030703">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WA Direct">
+  <meta name="description" content="Open any WhatsApp chat instantly without saving contacts">
+  <link rel="manifest" id="pwa-manifest">
+  <link rel="apple-touch-icon" id="apple-icon">
+  <title>WA Direct</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #030703;
+      --surface: #090F09;
+      --surface2: #0E170E;
+      --border: #162316;
+      --border-hi: #1E3A1E;
+      --green: #25D366;
+      --green-dim: #1A9E4C;
+      --green-glow: rgba(37,211,102,0.12);
+      --green-glow-strong: rgba(37,211,102,0.3);
+      --text: #DCF0DC;
+      --text-dim: #5A7A5A;
+      --text-mid: #9BB59B;
+      --font: 'Syne', sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --radius: 14px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { height: 100%; }
+
+    body {
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+      overflow-x: hidden;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(37,211,102,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37,211,102,0.04) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Radial glow */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 500px;
+      background: radial-gradient(ellipse at center, rgba(37,211,102,0.07) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Layout */
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 460px;
+      padding: 32px 20px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding-bottom: 8px;
+      animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    .logo-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .logo-mark {
+      width: 52px;
+      height: 52px;
+      background: var(--green);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 1px rgba(37,211,102,0.3), 0 8px 32px rgba(37,211,102,0.35);
+      flex-shrink: 0;
+    }
+
+    .logo-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .logo-title em {
+      color: var(--green);
+      font-style: normal;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 0 0 1px var(--border), 0 24px 64px rgba(0,0,0,0.6);
+      animation: slideUp 0.5s 0.08s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    .label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      margin-bottom: 8px;
+    }
+
+    /* Phone row */
+    .phone-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .cc-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .cc-select {
+      height: 54px;
+      width: 104px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 0 28px 0 12px;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235A7A5A'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    .cc-select:focus {
+      border-color: var(--green-dim);
+      box-shadow: 0 0 0 3px var(--green-glow);
+    }
+
+    .cc-select option { background: #0E170E; }
+
+    .phone-input {
+      flex: 1;
+      height: 54px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 500;
+      padding: 0 16px;
+      letter-spacing: 0.04em;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .phone-input::placeholder {
+      color: var(--text-dim);
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+
+    .phone-input:focus, .cc-select:focus {
+      border-color: var(--green-dim);
+      box-shadow: 0 0 0 3px var(--green-glow);
+    }
+
+    /* Message */
+    .msg-section { margin-bottom: 22px; }
+
+    .msg-input {
+      width: 100%;
+      height: 76px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      padding: 12px 14px;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .msg-input::placeholder { color: var(--text-dim); }
+
+    .msg-input:focus {
+      border-color: var(--green-dim);
+      box-shadow: 0 0 0 3px var(--green-glow);
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-open {
+      flex: 1;
+      height: 54px;
+      background: var(--green);
+      color: #030703;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      letter-spacing: 0.01em;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+    }
+
+    .btn-open::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .btn-open:hover {
+      background: #33f07a;
+      box-shadow: 0 0 28px var(--green-glow-strong);
+    }
+
+    .btn-open:active { transform: scale(0.98); }
+
+    .btn-copy {
+      width: 54px;
+      height: 54px;
+      flex-shrink: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-mid);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+
+    .btn-copy:hover {
+      border-color: var(--border-hi);
+      color: var(--green);
+      background: var(--green-glow);
+    }
+
+    /* Recent */
+    .recent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      animation: slideUp 0.5s 0.16s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    .recent-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .btn-clear {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .btn-clear:hover { color: #e05555; background: rgba(224,85,85,0.08); }
+
+    .recent-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .recent-item:hover {
+      border-color: var(--green-dim);
+      background: rgba(37,211,102,0.04);
+    }
+
+    .recent-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green-dim);
+      flex-shrink: 0;
+    }
+
+    .recent-num {
+      flex: 1;
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .recent-arrow {
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    /* Install banner */
+    .install-card {
+      background: rgba(37,211,102,0.06);
+      border: 1px solid rgba(37,211,102,0.18);
+      border-radius: 16px;
+      padding: 18px 20px;
+      display: none;
+      align-items: flex-start;
+      gap: 14px;
+      animation: slideUp 0.5s 0.22s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    .install-card.show { display: flex; }
+
+    .install-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--green);
+      border-radius: 10px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .install-text {
+      flex: 1;
+    }
+
+    .install-text strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .install-text p {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+
+    .btn-install {
+      background: var(--green);
+      color: #030703;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      align-self: center;
+      transition: background 0.2s;
+    }
+
+    .btn-install:hover { background: #33f07a; }
+
+    /* iOS hint */
+    .ios-hint {
+      border-radius: 16px;
+      background: rgba(37,211,102,0.06);
+      border: 1px solid rgba(37,211,102,0.18);
+      padding: 14px 18px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      text-align: center;
+      display: none;
+    }
+
+    .ios-hint span { color: var(--green); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: max(28px, env(safe-area-inset-bottom, 20px));
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border-hi);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-family: var(--mono);
+      z-index: 999;
+      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.35s;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      padding-top: 4px;
+      opacity: 0.6;
+    }
+
+    /* Animations */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 460px) {
+      .wrap { padding: 24px 16px 36px; }
+      .card { padding: 22px 18px; }
+    }
+
+    @media (min-width: 461px) {
+      .wrap { padding: 48px 24px 48px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="header">
+    <div class="logo-wrap">
+      <div class="logo-mark">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <path d="M15 2.5C8.1 2.5 2.5 8.1 2.5 15c0 2.3.62 4.46 1.7 6.32L2.5 27.5l6.3-1.68A12.42 12.42 0 0015 27.5C21.9 27.5 27.5 21.9 27.5 15S21.9 2.5 15 2.5z" fill="#030703"/>
+          <path d="M20.8 17.9c-.32-.16-1.9-.94-2.2-1.05-.3-.1-.52-.16-.73.16s-.84 1.05-1.04 1.27c-.19.21-.38.24-.7.08-.32-.16-1.37-.5-2.6-1.6-.96-.86-1.6-1.91-1.79-2.23-.19-.32-.02-.5.14-.66.15-.14.32-.38.48-.57.16-.19.21-.32.32-.54.1-.22.05-.41-.02-.57-.08-.16-.73-1.75-1-2.4-.26-.62-.53-.54-.73-.54-.19 0-.4 0-.62 0s-.57.08-.86.4c-.3.32-1.14 1.12-1.14 2.72s1.17 3.16 1.33 3.38c.16.21 2.3 3.5 5.57 4.9.78.34 1.38.54 1.86.69.78.25 1.5.22 2.06.13.63-.1 1.93-.78 2.2-1.54.27-.76.27-1.4.19-1.54-.08-.13-.3-.22-.62-.38z" fill="#030703"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-title">WA<em>Direct</em></div>
+      </div>
+    </div>
+    <div class="logo-sub">Open any chat without saving</div>
+  </header>
+
+  <div class="card">
+    <div class="label">Phone Number</div>
+    <div class="phone-row">
+      <select class="cc-select" id="cc">
+        <option value="91">🇮🇳 +91</option>
+        <option value="1">🇺🇸 +1</option>
+        <option value="44">🇬🇧 +44</option>
+        <option value="971">🇦🇪 +971</option>
+        <option value="65">🇸🇬 +65</option>
+        <option value="60">🇲🇾 +60</option>
+        <option value="92">🇵🇰 +92</option>
+        <option value="880">🇧🇩 +880</option>
+        <option value="61">🇦🇺 +61</option>
+        <option value="64">🇳🇿 +64</option>
+        <option value="49">🇩🇪 +49</option>
+        <option value="33">🇫🇷 +33</option>
+        <option value="39">🇮🇹 +39</option>
+        <option value="34">🇪🇸 +34</option>
+        <option value="31">🇳🇱 +31</option>
+        <option value="7">🇷🇺 +7</option>
+        <option value="86">🇨🇳 +86</option>
+        <option value="81">🇯🇵 +81</option>
+        <option value="82">🇰🇷 +82</option>
+        <option value="55">🇧🇷 +55</option>
+        <option value="52">🇲🇽 +52</option>
+        <option value="27">🇿🇦 +27</option>
+        <option value="20">🇪🇬 +20</option>
+        <option value="234">🇳🇬 +234</option>
+        <option value="254">🇰🇪 +254</option>
+      </select>
+      <input
+        type="tel"
+        class="phone-input"
+        id="phone"
+        placeholder="9876543210"
+        autocomplete="tel-national"
+        inputmode="numeric"
+        autofocus
+      >
+    </div>
+
+    <div class="msg-section">
+      <div class="label">Pre-fill Message <span style="color:var(--text-dim);font-weight:400;letter-spacing:0">(optional)</span></div>
+      <textarea class="msg-input" id="msg" placeholder="Hello! I wanted to reach out..."></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-open" id="openBtn" onclick="openChat()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+          <path d="M9 1C4.58 1 1 4.58 1 9c0 1.4.36 2.74.99 3.9L1 17l4.17-1.06A7.97 7.97 0 009 17c4.42 0 8-3.58 8-8s-3.58-8-8-8z"/>
+        </svg>
+        Open WhatsApp Chat
+      </button>
+      <button class="btn-copy" id="copyBtn" title="Copy link" onclick="copyLink()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <rect x="5.5" y="5.5" width="9" height="9" rx="2"/>
+          <path d="M10.5 5.5V3a1.5 1.5 0 00-1.5-1.5H3A1.5 1.5 0 001.5 3v6A1.5 1.5 0 003 10.5h2.5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="recentCard" class="recent-card" style="display:none">
+    <div class="recent-header">
+      <div class="label" style="margin:0">Recent</div>
+      <button class="btn-clear" onclick="clearRecent()">Clear</button>
+    </div>
+    <div class="recent-list" id="recentList"></div>
+  </div>
+
+  <div class="install-card" id="installCard">
+    <div class="install-icon">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="#030703">
+        <path d="M9 1v10M5 7l4 4 4-4M1 14v1a2 2 0 002 2h12a2 2 0 002-2v-1" stroke="#030703" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      </svg>
+    </div>
+    <div class="install-text">
+      <strong>Install as App</strong>
+      <p>Works offline, opens from home screen</p>
+    </div>
+    <button class="btn-install" onclick="installPWA()">Install</button>
+  </div>
+
+  <div class="ios-hint" id="iosHint">
+    <span>Install on iPhone:</span> Tap the Share button below, then <span>Add to Home Screen</span>
+  </div>
+
+  <div class="footer">wa.me link opener &middot; no data saved to server</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // --- PWA Manifest (blob) ---
+  const iconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="38" fill="#030703"/><circle cx="96" cy="96" r="72" fill="#25D366"/><path d="M132 113c-2-1-13.5-6.7-15.6-7.4-2-0.7-3.5-1-5 1.1s-6 7.5-7.4 9-2.8 1.7-5.2-.2c-2.3-1-9.7-3.6-18.5-11.4-6.8-6.1-11.4-13.6-12.8-15.9-1.3-2.3-.1-3.5 1-4.7 1-1 2.3-2.7 3.4-4 1.2-1.3 1.6-2.3 2.3-3.8.8-1.5.4-2.8-.2-4-.6-1.1-5.2-12.4-7.1-17-1.9-4.4-3.8-3.8-5.2-3.9-1.3-.1-2.9-.1-4.4-.1s-4 .6-6.1 2.8c-2.1 2.3-8 7.8-8 19.2s8.2 22.2 9.4 23.8 16.1 24.7 39.1 34.6c5.4 2.3 9.7 3.7 13 4.8 5.4 1.7 10.4 1.5 14.3.9 4.4-.6 13.5-5.5 15.4-10.8 1.9-5.3 1.9-9.9 1.3-10.8-.6-1-2.2-1.6-4.4-2.6z" fill="#030703"/></svg>`;
+  const enc = encodeURIComponent(iconSVG);
+  const manifestObj = {
+    name: 'WA Direct',
+    short_name: 'WA Direct',
+    description: 'Open any WhatsApp chat instantly',
+    start_url: window.location.href,
+    display: 'standalone',
+    background_color: '#030703',
+    theme_color: '#030703',
+    orientation: 'portrait-primary',
+    icons: [
+      { src: 'data:image/svg+xml,' + enc, sizes: '192x192', type: 'image/svg+xml' },
+      { src: 'data:image/svg+xml,' + enc, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+    ]
+  };
+  const mBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+  document.getElementById('pwa-manifest').href = URL.createObjectURL(mBlob);
+
+  // Apple touch icon
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 180;
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, 180, 180);
+    const link = document.createElement('link');
+    link.rel = 'apple-touch-icon';
+    link.href = canvas.toDataURL();
+    document.head.appendChild(link);
+  };
+  img.src = 'data:image/svg+xml,' + enc;
+
+  // --- Service Worker (blob) ---
+  if ('serviceWorker' in navigator) {
+    const sw = `
+      self.addEventListener('install', () => self.skipWaiting());
+      self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+      self.addEventListener('fetch', e => {
+        e.respondWith(fetch(e.request).catch(() => new Response('', {status: 503})));
+      });
+    `;
+    const swBlob = new Blob([sw], { type: 'text/javascript' });
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+  }
+
+  // --- Install Prompt ---
+  let installPrompt = null;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone;
+  const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+
+  if (isIOS && !isStandalone) {
+    document.getElementById('iosHint').style.display = 'block';
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    installPrompt = e;
+    document.getElementById('installCard').classList.add('show');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('installCard').classList.remove('show');
+    toast('App installed successfully!');
+  });
+
+  function installPWA() {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    installPrompt.userChoice.then(r => {
+      installPrompt = null;
+      document.getElementById('installCard').classList.remove('show');
+      if (r.outcome === 'accepted') toast('Installing...');
+    });
+  }
+
+  // --- Core logic ---
+  function buildURL() {
+    const cc = document.getElementById('cc').value.replace(/\D/g, '');
+    const num = document.getElementById('phone').value.replace(/\D/g, '');
+    const msg = document.getElementById('msg').value.trim();
+    if (!num) return null;
+    const full = cc + num;
+    return msg ? `https://wa.me/${full}?text=${encodeURIComponent(msg)}` : `https://wa.me/${full}`;
+  }
+
+  function openChat() {
+    const url = buildURL();
+    if (!url) { toast('Enter a phone number'); document.getElementById('phone').focus(); return; }
+    saveRecent();
+    window.open(url, '_blank');
+  }
+
+  function copyLink() {
+    const url = buildURL();
+    if (!url) { toast('Enter a phone number'); return; }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => toast('Link copied!'));
+    } else {
+      const el = document.createElement('textarea');
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      toast('Link copied!');
+    }
+  }
+
+  // --- Recent ---
+  const RKEY = 'wadirect_recent';
+
+  function saveRecent() {
+    const cc = document.getElementById('cc').value;
+    const num = document.getElementById('phone').value.replace(/\D/g, '');
+    if (!num) return;
+    let list = getRecent();
+    const entry = { cc, num, label: `+${cc.replace(/\D/g,'')} ${num}` };
+    list = list.filter(r => r.label !== entry.label);
+    list.unshift(entry);
+    list = list.slice(0, 6);
+    localStorage.setItem(RKEY, JSON.stringify(list));
+    renderRecent();
+  }
+
+  function getRecent() {
+    try { return JSON.parse(localStorage.getItem(RKEY)) || []; } catch { return []; }
+  }
+
+  function clearRecent() {
+    localStorage.removeItem(RKEY);
+    renderRecent();
+    toast('Cleared');
+  }
+
+  function loadRecent(cc, num) {
+    document.getElementById('cc').value = cc;
+    document.getElementById('phone').value = num;
+    openChat();
+  }
+
+  function renderRecent() {
+    const list = getRecent();
+    const card = document.getElementById('recentCard');
+    const el = document.getElementById('recentList');
+    if (!list.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    el.innerHTML = list.map(r => `
+      <div class="recent-item" onclick="loadRecent('${r.cc}','${r.num}')">
+        <div class="recent-dot"></div>
+        <span class="recent-num">${r.label}</span>
+        <span class="recent-arrow">&#8250;</span>
+      </div>
+    `).join('');
+  }
+
+  // --- Toast ---
+  let toastTimer;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+
+  // Enter key
+  document.getElementById('phone').addEventListener('keydown', e => {
+    if (e.key === 'Enter') openChat();
+  });
+
+  // Init
+  renderRecent();
+</script>
+</body>
+</html>
