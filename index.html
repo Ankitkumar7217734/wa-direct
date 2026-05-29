@@ -85,6 +85,7 @@
       z-index: 1;
       width: 100%;
       max-width: 460px;
+      min-height: 100dvh;
       padding: 32px 20px 40px;
       display: flex;
       flex-direction: column;
@@ -482,13 +483,65 @@
       opacity: 1;
     }
 
+    /* Tips card — fills the lower area on tall phone screens */
+    .tips-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: slideUp 0.5s 0.16s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    .tips-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .tip-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .tip-dot {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--green-glow);
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .tip-text {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--text-mid);
+      padding-top: 5px;
+    }
+
+    .tip-text strong { color: var(--text); font-weight: 600; }
+
     /* Footer */
     .footer {
+      margin-top: auto;
       text-align: center;
       font-family: var(--mono);
       font-size: 11px;
       color: var(--text-dim);
-      padding-top: 4px;
+      padding-top: 12px;
       opacity: 0.6;
     }
 
@@ -658,6 +711,22 @@
 
   <div class="ios-hint" id="iosHint">
     <span>Install on iPhone:</span> Tap the Share button below, then <span>Add to Home Screen</span>
+  </div>
+
+  <div class="tips-card">
+    <div class="tips-title">How it works</div>
+    <div class="tip-row">
+      <div class="tip-dot">1</div>
+      <div class="tip-text">Pick the <strong>country code</strong> and type the phone number — no need to save the contact first.</div>
+    </div>
+    <div class="tip-row">
+      <div class="tip-dot">2</div>
+      <div class="tip-text">Add an optional <strong>pre-filled message</strong> so the chat opens with text ready to send.</div>
+    </div>
+    <div class="tip-row">
+      <div class="tip-dot">3</div>
+      <div class="tip-text">Tap <strong>Open WhatsApp Chat</strong> and the conversation launches in WhatsApp instantly.</div>
+    </div>
   </div>
 
   <div class="footer">wa.me link opener &middot; no data saved to server</div>
