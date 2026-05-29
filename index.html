@@ -556,12 +556,16 @@
     }
 
     /* Responsive — scale up for phone-sized viewports so the UI fills
-       the screen properly when installed as an Android PWA */
-    @media (max-width: 600px) {
+       the screen properly when installed as an Android PWA.
+       Trigger on any touch device (pointer: coarse) OR a narrow viewport,
+       because some larger Android phones/foldables report > 600px CSS width
+       in portrait yet still need the mobile layout. */
+    @media (max-width: 900px), (pointer: coarse) {
       body { justify-content: flex-start; }
 
       .wrap {
-        max-width: 100%;
+        max-width: 560px;
+        width: 100%;
         padding: 28px 22px calc(32px + env(safe-area-inset-bottom, 0));
         gap: 22px;
       }
