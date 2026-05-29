@@ -163,6 +163,8 @@
       display: flex;
       gap: 8px;
       margin-bottom: 16px;
+      width: 100%;
+      min-width: 0;
     }
 
     .cc-wrap {
@@ -197,7 +199,9 @@
     .cc-select option { background: #0E170E; }
 
     .phone-input {
-      flex: 1;
+      flex: 1 1 0;
+      min-width: 0;
+      width: 100%;
       height: 54px;
       background: var(--surface2);
       border: 1px solid var(--border);
@@ -572,20 +576,21 @@
 
       .label { font-size: 11px; margin-bottom: 10px; }
 
-      .phone-row { gap: 10px; margin-bottom: 20px; }
+      .phone-row { gap: 8px; margin-bottom: 20px; }
       .cc-select {
         height: 60px;
-        width: 116px;
-        font-size: 15px;
-        padding: 0 30px 0 14px;
-        background-position: right 12px center;
+        width: 104px;
+        font-size: 14px;
+        padding: 0 26px 0 12px;
+        background-position: right 10px center;
       }
       .phone-input {
         height: 60px;
-        font-size: 22px;
-        padding: 0 18px;
+        font-size: 19px;
+        padding: 0 14px;
+        letter-spacing: 0.02em;
       }
-      .phone-input::placeholder { font-size: 16px; }
+      .phone-input::placeholder { font-size: 15px; }
 
       .msg-section { margin-bottom: 24px; }
       .msg-input {
@@ -604,6 +609,25 @@
 
     @media (min-width: 601px) {
       .wrap { padding: 48px 24px 48px; }
+    }
+
+    /* Extra-narrow phones (e.g. 360px and below) — keep the phone row inside the card */
+    @media (max-width: 380px) {
+      .wrap { padding-left: 16px; padding-right: 16px; }
+      .card { padding: 22px 16px; }
+      .phone-row { gap: 6px; }
+      .cc-select {
+        width: 88px;
+        font-size: 13px;
+        padding: 0 22px 0 10px;
+        background-position: right 8px center;
+      }
+      .phone-input {
+        font-size: 17px;
+        padding: 0 12px;
+        letter-spacing: 0;
+      }
+      .phone-input::placeholder { font-size: 14px; }
     }
   </style>
 </head>
