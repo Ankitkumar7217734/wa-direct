@@ -766,17 +766,25 @@
 
 <script>
   // --- Service Worker ---
+  // The installed PWA keeps itself up to date with no reinstall: it checks for
+  // a newer service worker on launch, whenever the app is refocused, and hourly.
+  // When a new version takes control, the page reloads once automatically.
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    });
-    // When a new service worker takes control, reload once so the installed
-    // PWA picks up the latest page instead of staying on a cached version.
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (refreshing) return;
       refreshing = true;
       location.reload();
+    });
+
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        const checkForUpdate = () => reg.update().catch(() => {});
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') checkForUpdate();
+        });
+        setInterval(checkForUpdate, 60 * 60 * 1000);
+      }).catch(() => {});
     });
   }
 
