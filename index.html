@@ -769,6 +769,14 @@
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     });
+    // When a new service worker takes control, reload once so the installed
+    // PWA picks up the latest page instead of staying on a cached version.
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      location.reload();
+    });
   }
 
   // --- Install Prompt ---

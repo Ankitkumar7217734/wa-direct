@@ -1,4 +1,4 @@
-const CACHE = 'wa-direct-v3';
+const CACHE = 'wa-direct-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -23,18 +23,38 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request)
+
+  const req = e.request;
+  const isHTML =
+    req.mode === 'navigate' ||
+    (req.headers.get('accept') || '').includes('text/html');
+
+  // Network-first for the HTML app shell so layout/code updates always reach
+  // installed PWAs. Falls back to the cached page only when offline.
+  if (isHTML) {
+    e.respondWith(
+      fetch(req)
         .then(resp => {
-          if (resp.ok && new URL(e.request.url).origin === location.origin) {
-            const copy = resp.clone();
-            caches.open(CACHE).then(c => c.put(e.request, copy));
-          }
+          const copy = resp.clone();
+          caches.open(CACHE).then(c => c.put('./index.html', copy));
           return resp;
         })
-        .catch(() => caches.match('./index.html'));
+        .catch(() => caches.match(req).then(c => c || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Cache-first for static, same-origin assets (icons, manifest).
+  e.respondWith(
+    caches.match(req).then(cached => {
+      if (cached) return cached;
+      return fetch(req).then(resp => {
+        if (resp.ok && new URL(req.url).origin === location.origin) {
+          const copy = resp.clone();
+          caches.open(CACHE).then(c => c.put(req, copy));
+        }
+        return resp;
+      });
     })
   );
 });
