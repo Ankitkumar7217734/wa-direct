@@ -691,6 +691,7 @@
         placeholder="9876543210"
         autocomplete="tel-national"
         inputmode="numeric"
+        maxlength="10"
         autofocus
       >
     </div>
@@ -898,6 +899,12 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
   }
+
+  // Restrict the phone field to digits only, max 10
+  document.getElementById('phone').addEventListener('input', e => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+    if (e.target.value !== digits) e.target.value = digits;
+  });
 
   // Enter key
   document.getElementById('phone').addEventListener('keydown', e => {
