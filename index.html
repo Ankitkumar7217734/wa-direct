@@ -447,20 +447,63 @@
 
     .btn-install:hover { background: #33f07a; }
 
-    /* iOS hint */
+    /* iOS "Add to Home Screen" banner */
     .ios-hint {
-      border-radius: 16px;
       background: rgba(37,211,102,0.06);
       border: 1px solid rgba(37,211,102,0.18);
-      padding: 14px 18px;
-      font-size: 12px;
-      color: var(--text-dim);
-      line-height: 1.6;
-      text-align: center;
+      border-radius: 16px;
+      padding: 16px 18px;
       display: none;
+      align-items: center;
+      gap: 14px;
+      animation: slideUp 0.5s 0.22s cubic-bezier(0.16,1,0.3,1) both;
     }
 
-    .ios-hint span { color: var(--green); }
+    .ios-hint.show { display: flex; }
+
+    .ios-hint-icon {
+      width: 38px;
+      height: 38px;
+      background: var(--green);
+      border-radius: 10px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ios-hint-text { flex: 1; }
+
+    .ios-hint-text strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 3px;
+      color: var(--text);
+    }
+
+    .ios-hint-text p {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.45;
+    }
+
+    .ios-hint-text b { color: var(--green); font-weight: 600; }
+
+    .ios-hint-close {
+      align-self: flex-start;
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 20px;
+      line-height: 1;
+      padding: 0 2px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .ios-hint-close:hover { color: var(--text); }
 
     /* Toast */
     .toast {
@@ -739,7 +782,18 @@
   </div>
 
   <div class="ios-hint" id="iosHint">
-    <span>Install on iPhone:</span> Tap the Share button below, then <span>Add to Home Screen</span>
+    <div class="ios-hint-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#030703" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 15V3"/>
+        <path d="M8 7l4-4 4 4"/>
+        <path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/>
+      </svg>
+    </div>
+    <div class="ios-hint-text">
+      <strong>Add to Home Screen</strong>
+      <p>Tap the <b>Share</b> button, then choose <b>Add to Home Screen</b> to install this app.</p>
+    </div>
+    <button class="ios-hint-close" aria-label="Dismiss" onclick="dismissIosHint()">&times;</button>
   </div>
 
   <div class="tips-card">
@@ -790,11 +844,19 @@
 
   // --- Install Prompt ---
   let installPrompt = null;
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone;
-  const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  // iPadOS 13+ reports itself as a Mac, so also treat a touch-capable
+  // "MacIntel" as iOS — otherwise the hint never shows on modern iPads.
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
 
   if (isIOS && !isStandalone) {
-    document.getElementById('iosHint').style.display = 'block';
+    document.getElementById('iosHint').classList.add('show');
+  }
+
+  function dismissIosHint() {
+    document.getElementById('iosHint').classList.remove('show');
   }
 
   window.addEventListener('beforeinstallprompt', e => {
