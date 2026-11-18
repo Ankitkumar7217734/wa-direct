@@ -2,12 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#030703">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="WA Direct">
   <meta name="description" content="Open any WhatsApp chat instantly without saving contacts">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="WA Direct">
+  <meta property="og:description" content="Open any WhatsApp chat instantly without saving contacts">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ankitkumar7217734.github.io/wa-direct/">
+  <meta property="og:image" content="https://ankitkumar7217734.github.io/wa-direct/icon-512.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="WA Direct">
+  <meta name="twitter:description" content="Open any WhatsApp chat instantly without saving contacts">
+  <meta name="twitter:image" content="https://ankitkumar7217734.github.io/wa-direct/icon-512.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
@@ -19,6 +29,7 @@
 
   <style>
     :root {
+      color-scheme: dark;
       --bg: #030703;
       --surface: #090F09;
       --surface2: #0E170E;
@@ -38,6 +49,13 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* Native-feeling taps: no gray flash, no double-tap-zoom delay, no selection on controls */
+    button, select, input, textarea {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    button { user-select: none; }
+
     html { height: 100%; }
 
     body {
@@ -50,6 +68,7 @@
       align-items: center;
       padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
       overflow-x: hidden;
+      overscroll-behavior: contain;
     }
 
     /* Grid background */
@@ -351,6 +370,10 @@
     .recent-list { display: flex; flex-direction: column; gap: 6px; }
 
     .recent-item {
+      font: inherit;
+      color: inherit;
+      width: 100%;
+      text-align: left;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -598,6 +621,25 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* Keyboard focus: real buttons get a ring; the text fields already have their glow */
+    .btn-open:focus-visible, .btn-copy:focus-visible, .btn-install:focus-visible,
+    .btn-clear:focus-visible, .ios-hint-close:focus-visible, .recent-item:focus-visible {
+      outline: 2px solid var(--green-dim);
+      outline-offset: 2px;
+    }
+
+    .cc-select:focus-visible, .phone-input:focus-visible, .msg-input:focus-visible {
+      outline: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
     /* Responsive — scale up for phone-sized viewports so the UI fills
        the screen properly when installed as an Android PWA.
        Trigger on any touch device (pointer: coarse) OR a narrow viewport,
@@ -734,7 +776,7 @@
         placeholder="9876543210"
         autocomplete="tel-national"
         inputmode="numeric"
-        maxlength="10"
+        maxlength="15"
         autofocus
       >
     </div>
@@ -848,15 +890,19 @@
   // "MacIntel" as iOS — otherwise the hint never shows on modern iPads.
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /android/i.test(navigator.userAgent);
+
+  function buzz() { if (navigator.vibrate) navigator.vibrate(10); }
   const isStandalone = window.navigator.standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches;
 
-  if (isIOS && !isStandalone) {
+  if (isIOS && !isStandalone && !localStorage.getItem('wadirect_ios_hint_dismissed')) {
     document.getElementById('iosHint').classList.add('show');
   }
 
   function dismissIosHint() {
     document.getElementById('iosHint').classList.remove('show');
+    try { localStorage.setItem('wadirect_ios_hint_dismissed', '1'); } catch {}
   }
 
   window.addEventListener('beforeinstallprompt', e => {
@@ -894,12 +940,25 @@
     const url = buildURL();
     if (!url) { toast('Enter a phone number'); document.getElementById('phone').focus(); return; }
     saveRecent();
-    window.open(url, '_blank');
+    buzz();
+    if (isAndroid) {
+      // Hand off straight to the WhatsApp app via intent. If WhatsApp isn't
+      // installed, Android falls back to the wa.me URL in the browser.
+      const path = url.slice('https://wa.me/'.length);
+      location.href = `intent://send/${path}#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+    } else if (isIOS && isStandalone) {
+      // In a standalone iOS PWA, same-tab navigation is what triggers the
+      // universal-link handoff to the WhatsApp app.
+      location.href = url;
+    } else {
+      window.open(url, '_blank');
+    }
   }
 
   function copyLink() {
     const url = buildURL();
     if (!url) { toast('Enter a phone number'); return; }
+    buzz();
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(() => toast('Link copied!'));
     } else {
@@ -951,13 +1010,29 @@
     const el = document.getElementById('recentList');
     if (!list.length) { card.style.display = 'none'; return; }
     card.style.display = 'block';
-    el.innerHTML = list.map(r => `
-      <div class="recent-item" onclick="loadRecent('${r.cc}','${r.num}')">
-        <div class="recent-dot"></div>
-        <span class="recent-num">${r.label}</span>
-        <span class="recent-arrow">&#8250;</span>
-      </div>
-    `).join('');
+    el.textContent = '';
+    // Real buttons (focusable, keyboard-activatable) with textContent only —
+    // nothing from localStorage is ever interpolated into markup.
+    list.forEach(r => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'recent-item';
+      btn.setAttribute('aria-label', `Open chat with ${r.label}`);
+
+      const dot = document.createElement('span');
+      dot.className = 'recent-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      const num = document.createElement('span');
+      num.className = 'recent-num';
+      num.textContent = r.label;
+      const arrow = document.createElement('span');
+      arrow.className = 'recent-arrow';
+      arrow.textContent = '\u203A';
+
+      btn.append(dot, num, arrow);
+      btn.addEventListener('click', () => loadRecent(r.cc, r.num));
+      el.appendChild(btn);
+    });
   }
 
   // --- Toast ---
@@ -970,18 +1045,106 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
   }
 
-  // Restrict the phone field to digits only, max 10
-  document.getElementById('phone').addEventListener('input', e => {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+  // Restrict the phone field to digits only, max 15 (E.164 ceiling)
+  const ccEl = document.getElementById('cc');
+  const phoneEl = document.getElementById('phone');
+  const msgEl = document.getElementById('msg');
+
+  phoneEl.addEventListener('input', e => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
     if (e.target.value !== digits) e.target.value = digits;
   });
 
   // Enter key
-  document.getElementById('phone').addEventListener('keydown', e => {
+  phoneEl.addEventListener('keydown', e => {
     if (e.key === 'Enter') openChat();
   });
 
+  const CC_VALUES = [...ccEl.options].map(o => o.value);
+
+  function updatePlaceholder() {
+    phoneEl.placeholder = ccEl.value === '91' ? '9876543210' : 'Phone number';
+  }
+
+  // Remember the chosen country code across visits
+  const savedCC = localStorage.getItem('wadirect_cc');
+  if (savedCC && CC_VALUES.includes(savedCC)) ccEl.value = savedCC;
+
+  function setCountry(code) {
+    ccEl.value = code;
+    try { localStorage.setItem('wadirect_cc', code); } catch {}
+    updatePlaceholder();
+  }
+
+  ccEl.addEventListener('change', () => {
+    try { localStorage.setItem('wadirect_cc', ccEl.value); } catch {}
+    updatePlaceholder();
+  });
+
+  // Parse a shared/pasted string into {cc, num}. Only accepts strings that are
+  // just a phone number (separators allowed), so sentences are never misread.
+  function parsePhoneNumber(str) {
+    if (!str) return null;
+    const compact = str.trim().replace(/[\s\-().]/g, '');
+    const m = compact.match(/^(\+|00)?(\d{6,17})$/);
+    if (!m) return null;
+    let cc = null;
+    let num = m[2];
+    if (m[1]) {
+      // Longest-prefix match against the country codes we offer
+      for (const c of CC_VALUES.slice().sort((a, b) => b.length - a.length)) {
+        if (num.startsWith(c)) { cc = c; num = num.slice(c.length); break; }
+      }
+    }
+    return { cc, num };
+  }
+
+  // Smart paste: "+91 98765 43210" / "0044…" splits into country + number
+  phoneEl.addEventListener('paste', e => {
+    const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+    const parsed = parsePhoneNumber(text);
+    if (!parsed) return; // fall through to the default paste + digit filter
+    e.preventDefault();
+    if (parsed.cc && CC_VALUES.includes(parsed.cc)) setCountry(parsed.cc);
+    phoneEl.value = parsed.num.slice(0, 15);
+    updatePlaceholder();
+  });
+
+  // --- Incoming links & Android share target ---
+  // Handles shareable links (?cc=&num=&msg=) and Android's share sheet
+  // (title/text/url params when a number or wa.me link is shared into the app).
+  function applyIncomingParams() {
+    const p = new URLSearchParams(location.search);
+    if (![...p.keys()].length) return;
+
+    const text = p.get('text') || '';
+    const urlParam = p.get('url') || '';
+    const parsed = parsePhoneNumber(text);
+    const waMatch = urlParam.match(/wa\.me\/(\d{6,15})/);
+
+    if (parsed) {
+      if (parsed.cc && CC_VALUES.includes(parsed.cc)) setCountry(parsed.cc);
+      phoneEl.value = parsed.num.slice(0, 15);
+    } else if (waMatch) {
+      phoneEl.value = waMatch[1];
+      const t = (urlParam.match(/[?&]text=([^&]+)/) || [])[1];
+      if (t) { try { msgEl.value = decodeURIComponent(t.replace(/\+/g, ' ')); } catch {} }
+    } else if (p.get('num')) {
+      phoneEl.value = p.get('num').replace(/\D/g, '').slice(0, 15);
+    }
+
+    if (p.get('cc') && CC_VALUES.includes(p.get('cc'))) setCountry(p.get('cc'));
+
+    // Shared text that isn't a number becomes the pre-filled message
+    if (text && !parsed) msgEl.value = text.slice(0, 500);
+    if (p.get('msg')) msgEl.value = p.get('msg').slice(0, 500);
+
+    updatePlaceholder();
+  }
+
   // Init
+  updatePlaceholder();
+  applyIncomingParams();
   renderRecent();
 </script>
 </body>

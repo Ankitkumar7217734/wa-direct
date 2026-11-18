@@ -11,6 +11,16 @@
   "lang": "en",
   "dir": "ltr",
   "categories": ["utilities", "social", "productivity"],
+  "share_target": {
+    "action": "/wa-direct/",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "icon-192.png",

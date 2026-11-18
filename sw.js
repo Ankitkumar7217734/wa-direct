@@ -1,4 +1,4 @@
-const CACHE = 'wa-direct-v5';
+const CACHE = 'wa-direct-v6';
 const ASSETS = [
   './',
   './index.html',
