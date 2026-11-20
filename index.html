@@ -776,7 +776,7 @@
         placeholder="9876543210"
         autocomplete="tel-national"
         inputmode="numeric"
-        maxlength="15"
+        maxlength="16"
         autofocus
       >
     </div>
@@ -927,13 +927,59 @@
   }
 
   // --- Core logic ---
+  // Normalise whatever was typed into { cc, full, national }. Accepts:
+  //   9876543210          national number (picker's code is prepended)
+  //   09876543210         trunk "0" stripped, then the picker's code
+  //   +91 98765 43210     explicit international (picker's code NOT added)
+  //   0091 98765 43210    same, "00" style
+  //   919876543210        country code already typed in front (detected)
+  // Returns null when there is no usable number.
+  function normalizeNumber() {
+    const raw = document.getElementById('phone').value.trim();
+    const picked = document.getElementById('cc').value.replace(/\D/g, '');
+    let digits = raw.replace(/\D/g, '');
+    if (!digits) return null;
+
+    if (raw.startsWith('+')) {
+      // Explicitly international: the digits already carry the country code,
+      // so never prepend the picker's code on top of them.
+      digits = digits.slice(0, 15);
+      let cc = '';
+      for (const c of [...CC_VALUES].sort((a, b) => b.length - a.length)) {
+        if (digits.startsWith(c)) { cc = c; digits = digits.slice(c.length); break; }
+      }
+      // If the code isn't one we offer, keep the digits as the full number.
+      return { cc, full: cc ? cc + digits : digits, national: digits };
+    }
+
+    if (digits.startsWith('00')) {
+      // "00" international prefix — only trust it when a known country
+      // code actually follows; otherwise fall through to national handling.
+      const rest = digits.slice(2, 17);
+      for (const c of [...CC_VALUES].sort((a, b) => b.length - a.length)) {
+        if (rest.startsWith(c)) {
+          return { cc: c, full: rest.slice(0, 15), national: rest.slice(c.length) };
+        }
+      }
+    }
+
+    // Plain digits: drop a trunk "0", then detect a typed-in country code
+    digits = digits.replace(/^0+/, '');
+    if (!digits) return null;
+    const restLen = digits.startsWith(picked) ? digits.length - picked.length : -1;
+    const nnl = NATIONAL_LEN[picked];
+    if (nnl && restLen >= nnl[0] && restLen <= nnl[1]) {
+      // e.g. +91 picked, user typed 919876543210 — the code is already there
+      return { cc: picked, full: digits, national: digits.slice(picked.length) };
+    }
+    return { cc: picked, full: picked + digits, national: digits };
+  }
+
   function buildURL() {
-    const cc = document.getElementById('cc').value.replace(/\D/g, '');
-    const num = document.getElementById('phone').value.replace(/\D/g, '');
+    const n = normalizeNumber();
+    if (!n) return null;
     const msg = document.getElementById('msg').value.trim();
-    if (!num) return null;
-    const full = cc + num;
-    return msg ? `https://wa.me/${full}?text=${encodeURIComponent(msg)}` : `https://wa.me/${full}`;
+    return msg ? `https://wa.me/${n.full}?text=${encodeURIComponent(msg)}` : `https://wa.me/${n.full}`;
   }
 
   function openChat() {
@@ -976,11 +1022,10 @@
   const RKEY = 'wadirect_recent';
 
   function saveRecent() {
-    const cc = document.getElementById('cc').value;
-    const num = document.getElementById('phone').value.replace(/\D/g, '');
-    if (!num) return;
+    const n = normalizeNumber();
+    if (!n) return;
     let list = getRecent();
-    const entry = { cc, num, label: `+${cc.replace(/\D/g,'')} ${num}` };
+    const entry = { cc: n.cc || '', num: n.national, label: `+${n.full}` };
     list = list.filter(r => r.label !== entry.label);
     list.unshift(entry);
     list = list.slice(0, 6);
@@ -999,8 +1044,14 @@
   }
 
   function loadRecent(cc, num) {
-    document.getElementById('cc').value = cc;
-    document.getElementById('phone').value = num;
+    // Recent entries saved as national numbers under a known code; or as
+    // full international digits with no code (older/unknown entries).
+    if (cc && CC_VALUES.includes(cc)) {
+      setCountry(cc);
+      phoneEl.value = num.replace(/\D/g, '').slice(0, 16);
+    } else {
+      phoneEl.value = (cc || '') + String(num).replace(/\D/g, '');
+    }
     openChat();
   }
 
@@ -1051,7 +1102,7 @@
   const msgEl = document.getElementById('msg');
 
   phoneEl.addEventListener('input', e => {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 16);
     if (e.target.value !== digits) e.target.value = digits;
   });
 
@@ -1061,6 +1112,15 @@
   });
 
   const CC_VALUES = [...ccEl.options].map(o => o.value);
+  // Typical national-number lengths per country code — used to detect when
+  // the user typed the country code in front of a national number.
+  const NATIONAL_LEN = {
+    '1': [10, 10], '7': [10, 10], '20': [9, 10], '27': [9, 9], '31': [9, 9],
+    '33': [9, 9], '34': [9, 9], '39': [9, 11], '44': [10, 10], '49': [10, 11],
+    '52': [10, 10], '55': [10, 11], '60': [9, 10], '61': [9, 9], '64': [8, 10],
+    '65': [8, 8], '81': [10, 10], '82': [9, 10], '86': [11, 11], '91': [10, 10],
+    '92': [9, 10], '234': [10, 10], '254': [9, 9], '880': [10, 10], '971': [9, 9]
+  };
 
   function updatePlaceholder() {
     phoneEl.placeholder = ccEl.value === '91' ? '9876543210' : 'Phone number';
@@ -1106,7 +1166,7 @@
     if (!parsed) return; // fall through to the default paste + digit filter
     e.preventDefault();
     if (parsed.cc && CC_VALUES.includes(parsed.cc)) setCountry(parsed.cc);
-    phoneEl.value = parsed.num.slice(0, 15);
+    phoneEl.value = parsed.num.slice(0, 16);
     updatePlaceholder();
   });
 
@@ -1124,13 +1184,13 @@
 
     if (parsed) {
       if (parsed.cc && CC_VALUES.includes(parsed.cc)) setCountry(parsed.cc);
-      phoneEl.value = parsed.num.slice(0, 15);
+      phoneEl.value = parsed.num.slice(0, 16);
     } else if (waMatch) {
       phoneEl.value = waMatch[1];
       const t = (urlParam.match(/[?&]text=([^&]+)/) || [])[1];
       if (t) { try { msgEl.value = decodeURIComponent(t.replace(/\+/g, ' ')); } catch {} }
     } else if (p.get('num')) {
-      phoneEl.value = p.get('num').replace(/\D/g, '').slice(0, 15);
+      phoneEl.value = p.get('num').replace(/\D/g, '').slice(0, 16);
     }
 
     if (p.get('cc') && CC_VALUES.includes(p.get('cc'))) setCountry(p.get('cc'));
