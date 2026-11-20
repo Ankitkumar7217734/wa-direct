@@ -987,14 +987,14 @@
     if (!url) { toast('Enter a phone number'); document.getElementById('phone').focus(); return; }
     saveRecent();
     buzz();
-    if (isAndroid) {
-      // Hand off straight to the WhatsApp app via intent. If WhatsApp isn't
-      // installed, Android falls back to the wa.me URL in the browser.
-      const path = url.slice('https://wa.me/'.length);
-      location.href = `intent://send/${path}#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=${encodeURIComponent(url)};end`;
-    } else if (isIOS && isStandalone) {
-      // In a standalone iOS PWA, same-tab navigation is what triggers the
-      // universal-link handoff to the WhatsApp app.
+    if (isAndroid || (isIOS && isStandalone)) {
+      // Navigate straight to the wa.me URL in this tab. wa.me is a verified
+      // Android App Link / iOS universal link, so the OS hands off to the
+      // WhatsApp app automatically; if the app isn't installed, the wa.me
+      // page opens in the browser instead. The old Android intent:// hack
+      // (intent://send/<number>#Intent;...) is rejected by current WhatsApp
+      // with "Could not open this chat", and Chrome blocks generic web
+      // intent:// links on Android 12+ anyway.
       location.href = url;
     } else {
       window.open(url, '_blank');
